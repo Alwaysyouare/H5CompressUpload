@@ -30,7 +30,7 @@
 </div>
 <img id="compressUpload"/>
 <script src="h5upload.js"></script>
-
+<script src="ajaxfileupload.js"></script>
 
 <script>
     $(function () {
@@ -130,7 +130,6 @@
                             //注意：因为ajaxfileupload会使原来的控件事件消失，所以需要重新绑定
                             $('#upload').change(function () {
                                 uploadFileToServer();
-
                             });
                         },
                         error: function (data, status, e)//服务器响应失败处理函数
