@@ -1,0 +1,146 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0" />
+
+    <link rel="stylesheet" href="//cdn.bootcss.com/weui/0.4.3/style/weui.min.css">
+    <link rel="stylesheet" href="//cdn.bootcss.com/jquery-weui/0.8.2/css/jquery-weui.min.css">
+
+
+</head>
+<div class="weui_cells weui_cells_form">
+    <div class="weui_cell">
+        <div class="weui_cell_bd weui_cell_primary">
+            <div class="weui_uploader">
+                <div class="weui_uploader_hd weui_cell">
+                    <div class="weui_cell_bd weui_cell_primary">图片上传</div>
+                    <div class="weui_cell_ft" id="fileIndex">0/3</div>
+                </div>
+                <div class="weui_uploader_bd">
+                    <ul class="weui_uploader_files" id="imgul"></ul>
+                    <div class="weui_uploader_input_wrp" id="uploadDiv">
+                        <input class="weui_uploader_input" name="upload" id="upload" type="file" accept="image/jpg,image/jpeg,image/png,image/gif" multiple="">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<img id="compressUpload"/>
+<script src="h5upload.js"></script>
+
+
+<script>
+    $(function () {
+        var fileArray = new Array();
+        $('#upload').change(function () {
+            uploadFileToServer();
+        });
+
+        function uploadFileToServer()
+        {
+            if (fileArray.length == 3) {
+                $.toast("最多上传三个附件");
+                return;
+            }
+            var fileObj = document.getElementById("upload");
+            if (fileObj.files[0].size > 1024 * 1024 * 1) {
+                var mpImg = new MegaPixImage(fileObj.files[0]);
+                var resImg = document.getElementById("compressUpload");
+                resImg.file = fileObj.files[0];
+                mpImg.render(resImg, { maxWidth: 500, maxHeight: 500, quality: 1 }, function () {
+                    resImg.onload = function () {
+                        //这些一定要放在img的onload里面。否则会出现图片为空或者全黑的问题
+                        var canvas = document.createElement("canvas");
+                        canvas.width = resImg.width;
+                        canvas.height = resImg.height;
+                        var ctx = canvas.getContext("2d");
+                        ctx.drawImage(resImg, 0, 0, resImg.width, resImg.height);
+                        var dataURL = canvas.toDataURL("image/jpeg");
+                        uploadBase64Image(dataURL);
+                    };
+
+                });
+                fileArray.push(fileObj.files[0]);
+            }
+            else {
+                fileArray.push(fileObj.files[0]);
+                ajaxFileUpload('upload');
+            }
+        }
+
+        //上传压缩成Base64字符串的图片
+        function uploadBase64Image(base64)
+        {
+            $.ajax({
+                url: '/UpLoad/MUploadImgBase64Str',
+                method: "POST",
+                data: { base64str: base64, nWeChatId: weChatId, sPhoneNum:phoneNum},
+                success: function (result) {
+                    $.toast("上传成功");
+                    var fileLength = fileArray.length;
+
+                    var indexTips = fileLength + "/3";
+                    $('#fileIndex').text(indexTips);
+                    // 注意这里
+                    // fileObj.files[0];
+                    var fileUrl = window.URL.createObjectURL(fileArray[fileLength - 1]);
+                    $('#imgul').append('<li class="weui_uploader_file" style="background-image:url(' + fileUrl + ')"></li>');
+
+                },
+                error: function (result) {
+                    $.toast(result);
+                }
+            });
+        }
+
+        //上传原始的图片
+        function ajaxFileUpload(uploadId) {
+            var fileName = $('#upload').attr("name");
+            $.ajaxFileUpload
+            (
+                    {
+                        url: '/UpLoad/UploadFile', //用于文件上传的服务器端请求地址
+                        secureuri: false, //一般设置为false
+                        fileElementId: uploadId, //文件上传空间的id属性  <input type="file" id="file" name="file" />
+                        dataType: 'JSON', //返回值类型 一般设置为json
+                        success: function (data)  //服务器成功响应处理函数
+                        {
+                            data = data.replace("</pre>", "");
+                            data = data.substring(data.indexOf(">") + 1);
+                            var jsonData = eval("(" + data + ")");
+                            var resultCode = jsonData.Success;
+                            if (resultCode) {
+                                $.toast("上传成功");
+                                var fileLength = fileArray.length;
+                                var indexTips = fileLength + "/3";
+                                $('#fileIndex').text(indexTips);
+                                var fileUrl = window.URL.createObjectURL(fileArray[fileLength - 1]);
+                                $('#imgul').append('<li class="weui_uploader_file" style="background-image:url(' + fileUrl + ')"></li>');
+                            }
+                            else
+                            {
+                                $.toast("请重试");
+                            }
+
+                        },
+                        complete: function (data, status) {
+                            //注意：因为ajaxfileupload会使原来的控件事件消失，所以需要重新绑定
+                            $('#upload').change(function () {
+                                uploadFileToServer();
+
+                            });
+                        },
+                        error: function (data, status, e)//服务器响应失败处理函数
+                        {
+                            alert(e);
+                        }
+                    }
+            )
+            return false;
+        }
+    });
+
+</script>
